@@ -151,7 +151,7 @@ Variaveis principais:
 | `S3_ACCESS_KEY_ID` | Chave de acesso do storage. |
 | `S3_SECRET_ACCESS_KEY` | Segredo do storage. |
 | `PUBLIC_ASSET_BASE_URL` | URL publica ou base para entrega de arquivos. |
-| `WORK_DIR` | Pasta temporaria de processamento. |
+| `WORK_DIR` | Pasta privada de processamento local. Default: `.data/reels-bot`. |
 | `MAX_BATCH_VIDEOS` | Limite de videos por lote. |
 | `MAX_INPUT_BYTES` | Tamanho maximo por video de entrada. |
 | `MAX_TELEGRAM_SEND_BYTES` | Limite para envio direto pelo Telegram. |
@@ -190,7 +190,7 @@ Configuracao esperada:
 - Turso acessivel por `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`;
 - Redis disponivel para BullMQ;
 - storage S3/R2 configurado para arquivos prontos;
-- `WORK_DIR` apontando para uma pasta temporaria do container;
+- `WORK_DIR` apontando para uma pasta privada do container, fora de `/tmp`;
 - health check HTTP exposto pelo Fastify.
 
 Processo web:

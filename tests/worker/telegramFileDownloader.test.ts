@@ -13,6 +13,7 @@ describe("createTelegramFileDownloader", () => {
       botToken: "123456:test-token",
       workDir,
       maxInputBytes: 1024,
+      createFileId: () => "local-123",
       fetch: async (url) => {
         fetchCalls.push(url.toString());
         if (url.toString().includes("/getFile?")) {
@@ -31,10 +32,11 @@ describe("createTelegramFileDownloader", () => {
     });
 
     expect(result).toEqual({
-      inputPath: join(workDir, "batch-1", "video-1-unsafe-clip.mp4"),
+      inputPath: join(workDir, "batch-1", "video-1-local-123.mp4"),
       bytesWritten: 11
     });
     expect(await readFile(result.inputPath, "utf8")).toBe("hello-video");
+    expect(result.inputPath).not.toContain("unsafe-clip");
     expect(fetchCalls).toEqual([
       "https://api.telegram.org/bot123456:test-token/getFile?file_id=telegram-file-1",
       "https://api.telegram.org/file/bot123456:test-token/videos/file.mp4"

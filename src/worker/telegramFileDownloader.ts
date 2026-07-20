@@ -1,5 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { mkdir, open } from "node:fs/promises";
+import { relative, resolve } from "node:path";
+import { nanoid } from "nanoid";
 
 export type TelegramDownloadInput = {
   batchId: string;
@@ -20,8 +21,10 @@ export function createTelegramFileDownloader(options: {
   workDir: string;
   maxInputBytes: number;
   fetch?: FetchLike;
+  createFileId?: () => string;
 }) {
   const fetchImpl = options.fetch ?? fetch;
+  const createFileId = options.createFileId ?? nanoid;
 
   return {
     async downloadVideo(input: TelegramDownloadInput): Promise<TelegramDownloadResult> {
@@ -53,11 +56,14 @@ export function createTelegramFileDownloader(options: {
         throw new Error(`Arquivo maior que ${Math.round(options.maxInputBytes / 1024 / 1024)} MB.`);
       }
 
-      const batchDir = join(options.workDir, sanitizeSegment(input.batchId));
-      await mkdir(batchDir, { recursive: true });
+      const workDir = resolve(options.workDir);
+      const batchDir = resolve(workDir, sanitizeSegment(input.batchId));
+      ensureInside(workDir, batchDir);
+      await mkdir(batchDir, { recursive: true, mode: 0o700 });
 
-      const inputPath = join(batchDir, `${sanitizeSegment(input.videoId)}-${sanitizeFileName(input.fileName)}`);
-      await writeFile(inputPath, bytes);
+      const inputPath = resolve(batchDir, `${sanitizeSegment(input.videoId)}-${sanitizeSegment(createFileId())}.mp4`);
+      ensureInside(batchDir, inputPath);
+      await writePrivateFile(inputPath, bytes);
 
       return {
         inputPath,
@@ -75,11 +81,23 @@ type TelegramGetFileResponse = {
   };
 };
 
-function sanitizeFileName(fileName: string) {
-  return sanitizeSegment(basename(fileName));
+function sanitizeSegment(value: string) {
+  const safeValue = value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return safeValue || "file";
 }
 
-function sanitizeSegment(value: string) {
-  const safeValue = value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return safeValue || "file";
+function ensureInside(parentPath: string, childPath: string) {
+  const pathFromParent = relative(parentPath, childPath);
+  if (pathFromParent.startsWith("..") || pathFromParent === "" || pathFromParent.startsWith("/")) {
+    throw new Error("Caminho de arquivo invalido.");
+  }
+}
+
+async function writePrivateFile(filePath: string, bytes: Buffer) {
+  const file = await open(filePath, "wx", 0o600);
+  try {
+    await file.writeFile(bytes);
+  } finally {
+    await file.close();
+  }
 }
