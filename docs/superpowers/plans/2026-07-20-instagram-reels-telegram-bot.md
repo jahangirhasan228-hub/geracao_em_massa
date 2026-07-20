@@ -38,6 +38,16 @@
 - `tests/workflow/batchWorkflow.test.ts`: workflow tests.
 - `tests/bot/panel.test.ts`: panel rendering tests.
 - `tests/renderer/ffmpegPlan.test.ts`: FFmpeg planning tests.
+- `tests/db/repositories.test.ts`: Turso row mapping and repository tests with local SQLite file.
+
+## Unit Test Priority
+
+- Unit tests are the first delivery priority for the MVP.
+- Each domain task starts with a failing unit test, then implementation, then passing verification.
+- Prefer pure modules for settings, workflow, panel text, keyboard intent parsing, FFmpeg argument planning, and database row mapping.
+- Integration work with Telegram, Redis, Turso, S3, and FFmpeg process execution begins only after the core unit tests pass.
+- Run `npm run test:unit` after every task that touches `src/workflow`, `src/bot`, `src/renderer`, or `src/db`.
+- Run `npm run test:coverage` before starting real Telegram/Railway staging verification.
 
 ## Task 1: Project Scaffold
 
@@ -64,6 +74,8 @@ Create `package.json`:
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:unit": "vitest run tests/config/**/*.test.ts tests/workflow/**/*.test.ts tests/bot/**/*.test.ts tests/renderer/**/*.test.ts tests/db/**/*.test.ts",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "db:migrate": "tsx src/db/migrate.ts"
   },
@@ -81,6 +93,7 @@ Create `package.json`:
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
+    "@vitest/coverage-v8": "^2.0.4",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^2.0.4"
@@ -973,8 +986,76 @@ git commit -m "feat: plan ffmpeg reels renders"
 - Create: `db/migrations/001_initial_schema.sql`
 - Create: `src/db/client.ts`
 - Create: `src/db/migrate.ts`
+- Create: `src/db/repositories.ts`
+- Test: `tests/db/repositories.test.ts`
 
-- [ ] **Step 1: Add SQLite schema**
+- [ ] **Step 1: Write failing repository mapper tests**
+
+Create `tests/db/repositories.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { DEFAULT_BATCH_SETTINGS } from "../../src/workflow/settings.js";
+import { mapBatchRow, mapVideoRow } from "../../src/db/repositories.js";
+
+describe("db repository mappers", () => {
+  it("maps a batch row into a domain batch", () => {
+    const batch = mapBatchRow({
+      id: "batch-1",
+      user_id: "user-1",
+      telegram_user_id: "123",
+      template_id: "humor-01",
+      status: "settings",
+      settings_json: JSON.stringify(DEFAULT_BATCH_SETTINGS),
+      status_panel_chat_id: "123",
+      status_panel_message_id: "456",
+      output_zip_url: null,
+      created_at: "2026-07-20 10:00:00",
+      updated_at: "2026-07-20 10:00:00"
+    });
+
+    expect(batch).toMatchObject({
+      id: "batch-1",
+      telegramUserId: "123",
+      status: "settings",
+      templateId: "humor-01",
+      settings: DEFAULT_BATCH_SETTINGS,
+      videos: []
+    });
+  });
+
+  it("maps a video row into a domain video", () => {
+    const video = mapVideoRow({
+      id: "video-1",
+      batch_id: "batch-1",
+      telegram_file_id: "file-1",
+      original_file_name: "one.mp4",
+      size_bytes: 1234,
+      status: "ready",
+      output_url: "https://files.example.com/one.mp4",
+      error_message: null,
+      created_at: "2026-07-20 10:00:00",
+      updated_at: "2026-07-20 10:00:00"
+    });
+
+    expect(video).toMatchObject({
+      id: "video-1",
+      fileId: "file-1",
+      fileName: "one.mp4",
+      sizeBytes: 1234,
+      status: "ready"
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify failure**
+
+Run: `npm test -- tests/db/repositories.test.ts`
+
+Expected: FAIL because `src/db/repositories.ts` does not exist.
+
+- [ ] **Step 3: Add SQLite schema**
 
 Create `db/migrations/001_initial_schema.sql`:
 
@@ -1038,7 +1119,7 @@ CREATE TABLE IF NOT EXISTS batch_events (
 CREATE INDEX IF NOT EXISTS idx_batch_events_batch_id ON batch_events(batch_id);
 ```
 
-- [ ] **Step 2: Add Turso/libSQL client**
+- [ ] **Step 4: Add Turso/libSQL client**
 
 Create `src/db/client.ts`:
 
@@ -1054,7 +1135,7 @@ export function createDbClient(env: Pick<AppEnv, "tursoDatabaseUrl" | "tursoAuth
 }
 ```
 
-- [ ] **Step 3: Add migration runner**
+- [ ] **Step 5: Add migration runner**
 
 Create `src/db/migrate.ts`:
 
@@ -1089,7 +1170,71 @@ await db.execute({
 console.log("Applied migration 001_initial_schema");
 ```
 
-- [ ] **Step 4: Run migration against a local SQLite file**
+- [ ] **Step 6: Add repository mappers**
+
+Create `src/db/repositories.ts`:
+
+```ts
+import type { Batch, BatchVideo } from "../workflow/batchWorkflow.js";
+import type { BatchStatus, VideoStatus } from "../workflow/status.js";
+import type { BatchSettings } from "../workflow/settings.js";
+
+export type BatchRow = {
+  id: string;
+  user_id: string;
+  telegram_user_id: string;
+  template_id: string | null;
+  status: string;
+  settings_json: string;
+  status_panel_chat_id: string | null;
+  status_panel_message_id: string | null;
+  output_zip_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VideoRow = {
+  id: string;
+  batch_id: string;
+  telegram_file_id: string;
+  original_file_name: string;
+  size_bytes: number;
+  status: string;
+  output_url: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function mapBatchRow(row: BatchRow): Batch {
+  return {
+    id: row.id,
+    telegramUserId: row.telegram_user_id,
+    status: row.status as BatchStatus,
+    templateId: row.template_id,
+    settings: JSON.parse(row.settings_json) as BatchSettings,
+    videos: []
+  };
+}
+
+export function mapVideoRow(row: VideoRow): BatchVideo {
+  return {
+    id: row.id,
+    fileId: row.telegram_file_id,
+    fileName: row.original_file_name,
+    sizeBytes: row.size_bytes,
+    status: row.status as VideoStatus
+  };
+}
+```
+
+- [ ] **Step 7: Run repository unit tests**
+
+Run: `npm test -- tests/db/repositories.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 8: Run migration against a local SQLite file**
 
 Run:
 
@@ -1099,16 +1244,20 @@ TURSO_DATABASE_URL=file:/tmp/reels-bot-plan.db TURSO_AUTH_TOKEN=local TELEGRAM_B
 
 Expected: output contains `Applied migration 001_initial_schema`.
 
-- [ ] **Step 5: Verify build**
+- [ ] **Step 9: Verify build and unit tests**
 
 Run: `npm run build`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+Run: `npm run test:unit`
+
+Expected: PASS.
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add db/migrations/001_initial_schema.sql src/db/client.ts src/db/migrate.ts package.json package-lock.json
+git add db/migrations/001_initial_schema.sql src/db/client.ts src/db/migrate.ts src/db/repositories.ts tests/db/repositories.test.ts package.json package-lock.json
 git commit -m "feat: add turso persistence schema"
 ```
 
@@ -1410,6 +1559,10 @@ Upload each output and the ZIP to storage, update database records, and edit the
 Send each generated video through Telegram when it is under `MAX_TELEGRAM_SEND_BYTES`; always send the ZIP link at the end.
 
 - [ ] **Step 7: Verify with staging bot**
+
+Run: `npm run test:coverage`
+
+Expected: PASS and coverage report is generated.
 
 Run locally with a real bot token, Redis, Turso, and storage variables.
 

@@ -183,10 +183,15 @@ Railway constraints:
 
 ## Testing Strategy
 
+- Unit tests are the primary quality gate for the MVP.
+- Every domain module should be designed as pure functions where possible before being connected to Telegram, Turso, Redis, storage, or FFmpeg.
 - Unit tests for batch state transitions and settings updates.
 - Unit tests for FFmpeg command generation.
+- Unit tests for live panel rendering and inline keyboard intent mapping.
+- Unit tests for repository mapping between SQLite rows and domain objects.
 - Integration test for Telegram update handling with mocked Telegram API.
 - Integration test for queue worker using sample small videos.
+- Coverage reports should be generated during local verification, with special attention to `src/workflow`, `src/bot/panel.ts`, `src/renderer`, and `src/db`.
 - Manual smoke test with a real Telegram bot in staging:
   - create batch,
   - choose template,
