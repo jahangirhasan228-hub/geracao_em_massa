@@ -97,7 +97,7 @@ The MVP should use a small service split into clear modules:
 - Storage module: stores original videos, rendered videos, thumbnails, and ZIP files.
 - Database module: persists users, batches, video records, settings, status panel message IDs, and output links.
 
-For Railway, the simplest deployment can start as one Node.js service running both the bot and worker with controlled concurrency. If processing load grows, split into two Railway services later:
+For Railway, the simplest deployment can start as one Node.js service running both the bot and worker with controlled concurrency. After processing load grows, split into two Railway services:
 
 - `bot`: webhook/API handling and Telegram updates.
 - `worker`: queue consumer and FFmpeg processor.
@@ -118,7 +118,7 @@ Node.js is a good fit because Telegram bot handling, queues, storage SDKs, and R
 
 Core tables:
 
-- `users`: Telegram user ID, username, first seen timestamp, plan/permissions if added later.
+- `users`: Telegram user ID, username, first seen timestamp, future plan/permissions fields.
 - `templates`: fixed template ID, name, preview asset path, render configuration.
 - `batches`: owner user, template, status, global settings JSON, counts, status panel chat/message IDs, output ZIP URL.
 - `videos`: batch, Telegram file ID, original filename, size, duration, status, output URL, error message.
