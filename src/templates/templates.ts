@@ -5,22 +5,31 @@ import { z } from "zod";
 export type TemplateDefinition = {
   id: string;
   name: string;
+  kind: "profile" | "frame";
   previewPath: string;
   canvas: { width: number; height: number };
   videoBox: { x: number; y: number; width: number; height: number };
-  header: {
-    avatarPath: string;
-    displayName: string;
-    handle: string;
-    headline: string;
-  };
-};
+} & (
+  | {
+      kind: "profile";
+      header: {
+        avatarPath: string;
+        displayName: string;
+        handle: string;
+        headline: string;
+      };
+    }
+  | {
+      kind: "frame";
+      framePath: string;
+    }
+);
 
 const relativeAssetPath = z.string().min(1).refine((path) => !path.startsWith("/") && !path.includes(".."), {
   message: "must be a relative path inside the repository"
 });
 
-const templateSchema = z
+const baseTemplateSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
     name: z.string().min(1),
@@ -34,7 +43,13 @@ const templateSchema = z
       y: z.number().int().min(0),
       width: z.number().int().positive(),
       height: z.number().int().positive()
-    }),
+    })
+  })
+  .strict();
+
+const profileTemplateSchema = baseTemplateSchema
+  .extend({
+    kind: z.literal("profile").default("profile"),
     header: z.object({
       avatarPath: relativeAssetPath,
       displayName: z.string().min(1),
@@ -43,6 +58,15 @@ const templateSchema = z
     })
   })
   .strict();
+
+const frameTemplateSchema = baseTemplateSchema
+  .extend({
+    kind: z.literal("frame"),
+    framePath: relativeAssetPath
+  })
+  .strict();
+
+const templateSchema = z.union([frameTemplateSchema, profileTemplateSchema]);
 
 export const TEMPLATES: TemplateDefinition[] = loadTemplatesFromDirectory(join(process.cwd(), "assets", "templates"));
 
@@ -68,7 +92,11 @@ function loadTemplate(templateDir: string): TemplateDefinition {
   }
 
   assertAssetExists(parsed.data.previewPath, templatePath);
-  assertAssetExists(parsed.data.header.avatarPath, templatePath);
+  if (parsed.data.kind === "frame") {
+    assertAssetExists(parsed.data.framePath, templatePath);
+  } else {
+    assertAssetExists(parsed.data.header.avatarPath, templatePath);
+  }
 
   return parsed.data;
 }

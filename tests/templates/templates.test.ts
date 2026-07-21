@@ -31,5 +31,9 @@ describe("file-backed templates", () => {
   it("loads production templates from assets", () => {
     expect(TEMPLATES.map((template) => template.id)).toContain("humor-crocodilo");
     expect(getTemplateById("humor-crocodilo")?.name).toBe("Humor Crocodilo");
+    expect(getTemplateById("humor-crocodilo")).toMatchObject({
+      kind: "frame",
+      framePath: "assets/templates/humor-crocodilo/frame.png"
+    });
   });
 });

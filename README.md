@@ -331,7 +331,7 @@ docs/
 
 ## Templates
 
-Os templates fixos ficam versionados no GitHub em `assets/templates/<id>/template.json`. Cada pasta tambem deve conter os assets referenciados pelo JSON, como `avatar.svg` e `preview.svg`.
+Os templates fixos ficam versionados no GitHub em `assets/templates/<id>/template.json`. Para templates prontos, use `kind: "frame"` com um `frame.png` em 1080x1920. Esse PNG deve ter transparencia na area onde o video entra; tudo que estiver opaco no PNG aparece por cima do Reel final.
 
 Exemplo:
 
@@ -339,9 +339,25 @@ Exemplo:
 assets/templates/
   humor-crocodilo/
     template.json
-    avatar.svg
+    frame.png
     preview.svg
 ```
+
+Exemplo de `template.json` para template pronto:
+
+```json
+{
+  "id": "humor-crocodilo",
+  "name": "Humor Crocodilo",
+  "kind": "frame",
+  "previewPath": "assets/templates/humor-crocodilo/preview.svg",
+  "framePath": "assets/templates/humor-crocodilo/frame.png",
+  "canvas": { "width": 1080, "height": 1920 },
+  "videoBox": { "x": 90, "y": 620, "width": 900, "height": 1120 }
+}
+```
+
+`videoBox` define onde o video sera encaixado dentro do canvas final, em pixels. No exemplo acima, o video e cortado no modo cover para `900x1120` e posicionado em `x=90`, `y=620`.
 
 O bot carrega automaticamente os templates validos dessa pasta. Se um `template.json` estiver invalido ou apontar para asset inexistente, os testes falham antes do deploy.
 
