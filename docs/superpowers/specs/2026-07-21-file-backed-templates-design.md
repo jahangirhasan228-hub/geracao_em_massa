@@ -19,8 +19,8 @@ Replace the hardcoded MVP template list with versioned template folders committe
 assets/templates/
   humor-crocodilo/
     template.json
-    avatar.png
-    preview.png
+    avatar.svg
+    preview.svg
 ```
 
 `template.json` contains the template identity, display metadata, preview path, canvas size, video box, and header data:
@@ -29,11 +29,11 @@ assets/templates/
 {
   "id": "humor-crocodilo",
   "name": "Humor Crocodilo",
-  "previewPath": "assets/templates/humor-crocodilo/preview.png",
+  "previewPath": "assets/templates/humor-crocodilo/preview.svg",
   "canvas": { "width": 1080, "height": 1920 },
   "videoBox": { "x": 90, "y": 620, "width": 900, "height": 1120 },
   "header": {
-    "avatarPath": "assets/templates/humor-crocodilo/avatar.png",
+    "avatarPath": "assets/templates/humor-crocodilo/avatar.svg",
     "displayName": "Humor do Crocodilo",
     "handle": "@humordocrocodilo",
     "headline": "Se voce e fa de Humor, ja era pra estar nos seguindo."

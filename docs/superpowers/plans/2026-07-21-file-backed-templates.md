@@ -26,8 +26,8 @@
 
 **Files:**
 - Create: `assets/templates/humor-crocodilo/template.json`
-- Create: `assets/templates/humor-crocodilo/avatar.png`
-- Create: `assets/templates/humor-crocodilo/preview.png`
+- Create: `assets/templates/humor-crocodilo/avatar.svg`
+- Create: `assets/templates/humor-crocodilo/preview.svg`
 - Modify: `src/templates/templates.ts`
 - Test: `tests/templates/templates.test.ts`
 
