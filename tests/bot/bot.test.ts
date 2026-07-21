@@ -129,9 +129,49 @@ describe("createTelegramBot", () => {
     });
     expect(calls.map((call) => call.method)).toEqual(["answerCallbackQuery", "editMessageText"]);
   });
+
+  it("ignores Telegram message-not-modified errors after bounded setting taps", async () => {
+    const store = new MemoryBatchStore();
+    store.batch = {
+      id: "batch-1",
+      telegramUserId: "123",
+      status: "settings",
+      templateId: "humor-01",
+      outputZipUrl: null,
+      settings: {
+        autoCut: true,
+        zoomPercent: 105,
+        speed: 1.3,
+        mirror: false,
+        trimStartSeconds: 0.3,
+        trimEndSeconds: 0.3,
+        antiduplication: true,
+        cta: true,
+        watermark: false
+      },
+      videos: [{ id: "video-1", fileId: "file-1", fileName: "one.mp4", sizeBytes: 1000, status: "received" }]
+    };
+
+    const calls = await handleUpdate(
+      store,
+      callbackUpdate("settings:speed:0.1", 123),
+      undefined,
+      new Error(
+        "Call to 'editMessageText' failed! (400: Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message)"
+      )
+    );
+
+    expect(store.batch?.settings.speed).toBe(1.3);
+    expect(calls.map((call) => call.method)).toEqual(["answerCallbackQuery", "editMessageText"]);
+  });
 });
 
-async function handleUpdate(store: BatchStore, update: Record<string, unknown>, queue?: { enqueueBatch(batchId: string): Promise<void> }) {
+async function handleUpdate(
+  store: BatchStore,
+  update: Record<string, unknown>,
+  queue?: { enqueueBatch(batchId: string): Promise<void> },
+  editMessageTextError?: Error
+) {
   const bot = createTelegramBot({ env: testEnv(), store, queue });
   bot.botInfo = {
     id: 123456,
@@ -146,6 +186,9 @@ async function handleUpdate(store: BatchStore, update: Record<string, unknown>, 
   const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
   bot.api.config.use(async (_previous, method, payload) => {
     calls.push({ method, payload: payload as Record<string, unknown> });
+    if (method === "editMessageText" && editMessageTextError) {
+      throw editMessageTextError;
+    }
     return {
       ok: true,
       result: {
