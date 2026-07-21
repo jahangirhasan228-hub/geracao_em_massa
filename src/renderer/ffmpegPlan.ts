@@ -18,24 +18,34 @@ export function buildFfmpegArgs(input: FfmpegPlanInput): string[] {
   const trimFilter = trimEnd && trimEnd > settings.trimStartSeconds
     ? `trim=start=${settings.trimStartSeconds}:end=${roundOneDecimal(trimEnd)}`
     : `trim=start=${settings.trimStartSeconds}`;
+  const inputArgs = ["-i", input.inputPath];
   const filters = [
+    `color=c=white:s=${template.canvas.width}x${template.canvas.height}[canvas]`,
     `[0:v]${trimFilter},setpts=${speedSetPts(settings.speed)},scale=${scaledWidth}:${scaledHeight}:force_original_aspect_ratio=increase,crop=${template.videoBox.width}:${template.videoBox.height}`
   ];
 
   if (settings.mirror) {
-    filters[0] += ",hflip";
+    filters[1] += ",hflip";
   }
 
-  filters[0] += "[video]";
+  filters[1] += "[video]";
+  filters.push(`[canvas][video]overlay=${template.videoBox.x}:${template.videoBox.y}:shortest=1[video_on_canvas]`);
+
+  if (template.kind === "frame") {
+    inputArgs.push("-loop", "1", "-i", template.framePath);
+    filters.push("[1:v]format=rgba[frame]");
+    filters.push("[video_on_canvas][frame]overlay=0:0:shortest=1,format=yuv420p[composed]");
+  } else {
+    filters.push("[video_on_canvas]format=yuv420p[composed]");
+  }
 
   return [
     "-y",
-    "-i",
-    input.inputPath,
+    ...inputArgs,
     "-filter_complex",
     filters.join(";"),
     "-map",
-    "[video]",
+    "[composed]",
     "-map",
     "0:a?",
     "-c:v",
