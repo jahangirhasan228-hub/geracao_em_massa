@@ -203,7 +203,14 @@ async function sendResponse(ctx: Context, response: BatchControllerResponse): Pr
   const replyMarkup = keyboardFor(response.keyboard);
 
   if (ctx.callbackQuery?.message) {
-    await ctx.editMessageText(response.text, replyMarkup ? { reply_markup: replyMarkup } : undefined);
+    try {
+      await ctx.editMessageText(response.text, replyMarkup ? { reply_markup: replyMarkup } : undefined);
+    } catch (error) {
+      if (!isTelegramMessageNotModifiedError(error)) {
+        throw error;
+      }
+    }
+
     return {
       chatId: ctx.callbackQuery.message.chat.id.toString(),
       messageId: ctx.callbackQuery.message.message_id
@@ -231,4 +238,8 @@ function keyboardFor(name: BatchControllerResponse["keyboard"]): InlineKeyboard 
   }
 
   return undefined;
+}
+
+function isTelegramMessageNotModifiedError(error: unknown) {
+  return error instanceof Error && error.message.includes("message is not modified");
 }
