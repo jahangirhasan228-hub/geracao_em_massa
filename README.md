@@ -234,7 +234,7 @@ O repositorio foi pensado para usar bastante o GitHub:
 - GitHub Actions para CI;
 - CodeQL para analise de seguranca em TypeScript;
 - Dependabot para dependencias npm e GitHub Actions;
-- GitHub Releases geradas por tags semanticas;
+- GitHub Releases geradas automaticamente a partir da versao do `package.json`;
 - branch protection ou rulesets no `main`;
 - GitHub secrets apenas quando algum workflow realmente precisar.
 
@@ -245,7 +245,9 @@ Veja tambem:
 
 ## Releases
 
-Releases sao criadas automaticamente quando uma tag semantica e enviada para o GitHub.
+Releases sao criadas automaticamente quando um merge na `main` traz uma versao nova no `package.json`.
+
+O workflow `.github/workflows/auto-release.yml` roda em todo push na `main`, executa `npm ci`, build, testes unitarios, cobertura e auditoria de seguranca. Se tudo passar, ele le a versao do `package.json`, monta a tag `vX.Y.Z`, verifica se essa tag ainda nao existe e cria a tag + GitHub Release com notas automaticas.
 
 Formato aceito:
 
@@ -258,26 +260,21 @@ v1.0.0-beta.1
 
 Antes de criar a tag, a versao do `package.json` deve ser a mesma da tag sem o `v`.
 
-Exemplo para publicar `v0.2.0`:
-
-```bash
-git switch -c release/v0.2.0
-npm version 0.2.0 --no-git-tag-version
-git add package.json package-lock.json
-git commit -m "chore: bump version to 0.2.0"
-git push -u origin release/v0.2.0
-```
-
-Depois que o PR for aprovado, os checks passarem e o merge for feito na `main`:
+Exemplo para publicar `v0.4.0`:
 
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+git switch -c release/v0.4.0
+npm version 0.4.0 --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "chore: bump version to 0.4.0"
+git push -u origin release/v0.4.0
 ```
 
-Ao receber a tag, o workflow `.github/workflows/release.yml` roda:
+Depois que o PR for aprovado, os checks passarem e o merge for feito na `main`, o workflow automatico cria a tag e a release. Se a tag da versao ja existir, o workflow pula a criacao sem falhar.
+
+O workflow `.github/workflows/release.yml` continua existindo como fallback para tags semanticas criadas manualmente. Quando uma tag manual e enviada, ele roda:
 
 - `npm ci`;
 - validacao da tag contra `package.json`;
@@ -304,13 +301,17 @@ src/
 
 tests/
   bot/
+  ci/
   config/
   db/
   delivery/
   packager/
+  queue/
   renderer/
   security/
+  server/
   storage/
+  worker/
   workflow/
 
 db/
