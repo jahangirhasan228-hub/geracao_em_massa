@@ -38,7 +38,7 @@ Because the repository is public and code scanning is enabled, require `Analyze 
 
 ## Release Flow
 
-Releases are created by pushing semantic version tags to GitHub.
+Releases are created automatically after a merge to `main` brings a new semantic version in `package.json`.
 
 Tag format:
 
@@ -65,11 +65,11 @@ Recommended release steps:
 4. Open a pull request.
 5. Wait for `Build, Tests, Audit` and `Analyze JavaScript and TypeScript`.
 6. Merge the pull request into `main`.
-7. Pull `main` locally.
-8. Create an annotated tag with `git tag -a v<version> -m "v<version>"`.
-9. Push the tag with `git push origin v<version>`.
+7. Let `.github/workflows/auto-release.yml` create `v<version>` and the GitHub Release.
 
-The `Release` workflow validates the project again before creating the GitHub Release.
+The auto-release workflow runs `npm ci`, TypeScript build, unit tests, coverage, and `npm audit --audit-level=high` before creating the tag. If the tag already exists, it skips release creation without failing.
+
+The `.github/workflows/release.yml` workflow remains as a fallback for semantic tags created manually. Manual tags still must match the current `package.json` version.
 
 ## Secrets
 
