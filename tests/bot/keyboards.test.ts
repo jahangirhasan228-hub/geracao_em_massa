@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settingsKeyboard, templateKeyboard } from "../../src/bot/keyboards.js";
+import { settingsKeyboard, templateKeyboard, templatePreviewKeyboard } from "../../src/bot/keyboards.js";
 
 describe("templateKeyboard", () => {
   it("lists real file-backed templates as Telegram buttons", () => {
@@ -8,6 +8,14 @@ describe("templateKeyboard", () => {
     expect(buttons).toEqual(
       expect.arrayContaining([{ text: "Humor Cachorro", callback_data: "template:humor-cachorro" }])
     );
+  });
+});
+
+describe("templatePreviewKeyboard", () => {
+  it("selects the matching template from the visual preview", () => {
+    const buttons = flattenInlineButtons(templatePreviewKeyboard("humor-cachorro").inline_keyboard);
+
+    expect(buttons).toEqual([{ text: "Usar este template", callback_data: "template:humor-cachorro" }]);
   });
 });
 

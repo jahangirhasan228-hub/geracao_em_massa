@@ -13,6 +13,10 @@ export function templateKeyboard() {
   return keyboard;
 }
 
+export function templatePreviewKeyboard(templateId: string) {
+  return new InlineKeyboard().text("Usar este template", `template:${templateId}`);
+}
+
 export function receivingKeyboard() {
   return new InlineKeyboard().text("Finalizar envio", "batch:settings").row().text("Cancelar lote", "batch:cancel");
 }
