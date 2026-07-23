@@ -20,7 +20,8 @@ describe("Node.js runtime", () => {
     for (const workflowPath of [
       ".github/workflows/ci.yml",
       ".github/workflows/release.yml",
-      ".github/workflows/auto-release.yml"
+      ".github/workflows/auto-release.yml",
+      ".github/workflows/prepare-release.yml"
     ]) {
       expect(readProjectFile(workflowPath)).toContain("node-version: 22");
     }

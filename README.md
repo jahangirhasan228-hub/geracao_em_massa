@@ -277,7 +277,17 @@ v1.0.0-beta.1
 
 Antes de criar a tag, a versao do `package.json` deve ser a mesma da tag sem o `v`.
 
-Exemplo para publicar `v0.4.0`:
+Fluxo recomendado pelo GitHub:
+
+1. Abra `Actions`.
+2. Escolha o workflow `Prepare Release PR`.
+3. Clique em `Run workflow`.
+4. Informe a versao, por exemplo `0.8.0` ou `v0.8.0`.
+5. O workflow cria uma branch `release/v0.8.0`, atualiza `package.json` e `package-lock.json`, abre uma PR e dispara CI + CodeQL.
+6. Depois que os checks passarem, faca o merge da PR.
+7. O workflow `Auto Release From Main` cria a tag e a GitHub Release automaticamente.
+
+Fluxo manual de fallback para publicar `v0.4.0`:
 
 ```bash
 git switch main

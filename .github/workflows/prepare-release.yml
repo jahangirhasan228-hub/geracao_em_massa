@@ -1,0 +1,128 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.8.0 or v0.8.0"
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    name: Create Version Bump Pull Request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolve release inputs
+        id: release
+        run: |
+          RAW_VERSION="${{ inputs.version }}"
+          VERSION="${RAW_VERSION#v}"
+          TAG_NAME="v${VERSION}"
+          BRANCH_NAME="release/${TAG_NAME}"
+          CURRENT_VERSION="$(node -p "require('./package.json').version")"
+
+          if ! echo "${TAG_NAME}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "Release version must use semver, for example 0.8.0 or v0.8.0-beta.1"
+            exit 1
+          fi
+
+          if [ "${VERSION}" = "${CURRENT_VERSION}" ]; then
+            echo "package.json is already at ${VERSION}"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Tag ${TAG_NAME} already exists"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" >/dev/null 2>&1; then
+            echo "Branch ${BRANCH_NAME} already exists"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "branch_name=${BRANCH_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure Git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump package version
+        run: |
+          BRANCH_NAME="${{ steps.release.outputs.branch_name }}"
+          VERSION="${{ steps.release.outputs.version }}"
+
+          git switch -c "${BRANCH_NAME}"
+          npm version "${VERSION}" --no-git-tag-version
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${VERSION}"
+          git push origin "${BRANCH_NAME}"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          TAG_NAME="${{ steps.release.outputs.tag_name }}"
+          BRANCH_NAME="${{ steps.release.outputs.branch_name }}"
+
+          PR_URL="$(
+            gh pr create \
+              --base main \
+              --head "${BRANCH_NAME}" \
+              --title "chore: prepare ${TAG_NAME}" \
+              --body "## O que mudou
+
+          - Atualiza package.json e package-lock.json para ${VERSION}.
+          - Prepara a release ${TAG_NAME}.
+
+          ## Depois do merge
+
+          O workflow Auto Release From Main vai validar a main, criar a tag ${TAG_NAME} e gerar a GitHub Release automaticamente."
+          )"
+
+          echo "release_pr_url=${PR_URL}" >> "${GITHUB_ENV}"
+          echo "Created ${PR_URL}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Trigger PR checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH_NAME="${{ steps.release.outputs.branch_name }}"
+
+          gh workflow run ci.yml --ref "${BRANCH_NAME}"
+          gh workflow run codeql.yml --ref "${BRANCH_NAME}"
+
+          {
+            echo ""
+            echo "Triggered checks for ${BRANCH_NAME}:"
+            echo "- CI"
+            echo "- CodeQL"
+          } >> "${GITHUB_STEP_SUMMARY}"

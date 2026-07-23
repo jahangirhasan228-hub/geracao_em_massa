@@ -57,7 +57,18 @@ The tag version must match `package.json` without the leading `v`. For example, 
 }
 ```
 
-Recommended release steps:
+Recommended release steps through GitHub Actions:
+
+1. Open `Actions`.
+2. Select `Prepare Release PR`.
+3. Click `Run workflow`.
+4. Enter the version, for example `0.8.0` or `v0.8.0`.
+5. Let the workflow create `release/v<version>`, bump `package.json` and `package-lock.json`, open a pull request, and trigger CI plus CodeQL.
+6. Wait for `Build, Tests, Audit` and `Analyze JavaScript and TypeScript`.
+7. Merge the pull request into `main`.
+8. Let `.github/workflows/auto-release.yml` create `v<version>` and the GitHub Release.
+
+Manual fallback:
 
 1. Create a branch for the version bump.
 2. Run `npm version <version> --no-git-tag-version`.
