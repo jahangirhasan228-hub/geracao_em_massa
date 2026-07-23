@@ -1,10 +1,12 @@
-import { Bot, type Context, type InlineKeyboard } from "grammy";
+import { join } from "node:path";
+import { Bot, InputFile, type Context, type InlineKeyboard } from "grammy";
 import { nanoid } from "nanoid";
 import { validateMediaInput } from "../security/media.js";
 import { isTrustedTelegramUser } from "../security/access.js";
 import { type AppEnv } from "../config/env.js";
+import { TEMPLATES } from "../templates/templates.js";
 import { type BatchQueue, type BatchStore, createBatchController, type BatchControllerResponse } from "./batchController.js";
-import { receivingKeyboard, settingsKeyboard, templateKeyboard } from "./keyboards.js";
+import { receivingKeyboard, settingsKeyboard, templateKeyboard, templatePreviewKeyboard } from "./keyboards.js";
 
 export function createTelegramBot(options: { env: AppEnv; store: BatchStore; queue?: BatchQueue }) {
   const bot = new Bot(options.env.telegramBotToken);
@@ -217,6 +219,10 @@ async function sendResponse(ctx: Context, response: BatchControllerResponse): Pr
     };
   }
 
+  if (response.keyboard === "templates") {
+    await sendTemplatePreviews(ctx);
+  }
+
   const message = await ctx.reply(response.text, replyMarkup ? { reply_markup: replyMarkup } : undefined);
   return {
     chatId: message.chat.id.toString(),
@@ -238,6 +244,19 @@ function keyboardFor(name: BatchControllerResponse["keyboard"]): InlineKeyboard 
   }
 
   return undefined;
+}
+
+async function sendTemplatePreviews(ctx: Context) {
+  for (const template of TEMPLATES) {
+    try {
+      await ctx.replyWithPhoto(new InputFile(join(process.cwd(), template.previewPath)), {
+        caption: `Template: ${template.name}`,
+        reply_markup: templatePreviewKeyboard(template.id)
+      });
+    } catch (error) {
+      console.warn(`Could not send template preview ${template.id}`, error);
+    }
+  }
 }
 
 function isTelegramMessageNotModifiedError(error: unknown) {

@@ -47,13 +47,36 @@ describe("createTelegramBot", () => {
       status: "draft"
     });
     expect(calls[0]).toMatchObject({
+      method: "sendPhoto",
+      payload: {
+        chat_id: 123,
+        caption: "Template: Humor Cachorro"
+      }
+    });
+    expect(calls[0]?.payload.reply_markup).toBeDefined();
+    expect(calls[1]).toMatchObject({
       method: "sendMessage",
       payload: {
         chat_id: 123
       }
     });
-    expect(calls[0]?.payload.text).toContain("Escolha um template");
-    expect(calls[0]?.payload.reply_markup).toBeDefined();
+    expect(calls[1]?.payload.text).toContain("Escolha um template");
+    expect(calls[1]?.payload.reply_markup).toBeDefined();
+  });
+
+  it("keeps the template picker usable when preview delivery fails", async () => {
+    const store = new MemoryBatchStore();
+    const calls = await handleUpdate(store, updateWithText("/novo", 123), undefined, {
+      sendPhoto: new Error("Telegram photo upload failed")
+    });
+
+    expect(store.batch).toMatchObject({
+      telegramUserId: "123",
+      status: "draft"
+    });
+    expect(calls.map((call) => call.method)).toEqual(["sendPhoto", "sendMessage"]);
+    expect(calls[1]?.payload.text).toContain("Escolha um template");
+    expect(calls[1]?.payload.reply_markup).toBeDefined();
   });
 
   it("stores the edited Telegram message as the live status panel before queueing", async () => {
@@ -170,7 +193,7 @@ async function handleUpdate(
   store: BatchStore,
   update: Record<string, unknown>,
   queue?: { enqueueBatch(batchId: string): Promise<void> },
-  editMessageTextError?: Error
+  apiErrors: Partial<Record<string, Error>> | Error = {}
 ) {
   const bot = createTelegramBot({ env: testEnv(), store, queue });
   bot.botInfo = {
@@ -186,8 +209,9 @@ async function handleUpdate(
   const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
   bot.api.config.use(async (_previous, method, payload) => {
     calls.push({ method, payload: payload as Record<string, unknown> });
-    if (method === "editMessageText" && editMessageTextError) {
-      throw editMessageTextError;
+    const error = apiErrors instanceof Error ? (method === "editMessageText" ? apiErrors : undefined) : apiErrors[method];
+    if (error) {
+      throw error;
     }
     return {
       ok: true,
