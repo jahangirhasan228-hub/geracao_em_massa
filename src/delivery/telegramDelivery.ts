@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { stat, readFile } from "node:fs/promises";
 
 export type TelegramDeliveryVideo = {
   id: string;
@@ -25,7 +25,7 @@ export function createTelegramDelivery(options: {
   return {
     async deliverBatch(input: TelegramDeliveryInput): Promise<void> {
       for (const video of input.videos) {
-        if (!video.outputPath || !video.outputUrl) {
+        if (!video.outputPath) {
           continue;
         }
 
@@ -34,11 +34,13 @@ export function createTelegramDelivery(options: {
           continue;
         }
 
-        await callTelegram(fetchImpl, options.botToken, "sendVideo", {
-          chat_id: input.chatId,
-          video: video.outputUrl,
-          caption: video.fileName
-        });
+        const fileBuffer = await readFile(video.outputPath);
+        const formData = new FormData();
+        formData.append("chat_id", input.chatId);
+        formData.append("caption", video.fileName);
+        formData.append("video", new Blob([fileBuffer], { type: "video/mp4" }), video.fileName);
+
+        await callTelegramMultipart(fetchImpl, options.botToken, "sendVideo", formData);
       }
 
       await callTelegram(fetchImpl, options.botToken, "sendMessage", {
@@ -62,3 +64,15 @@ async function callTelegram(fetchImpl: TelegramFetch, botToken: string, method: 
     throw new Error(`Telegram delivery failed with status ${response.status}: ${responseText}`);
   }
 }
+
+async function callTelegramMultipart(fetchImpl: TelegramFetch, botToken: string, method: string, formData: FormData) {
+  const response = await fetchImpl(new URL(`https://api.telegram.org/bot${botToken}/${method}`), {
+    method: "POST",
+    body: formData as unknown as BodyInit
+  } as RequestInit);
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    throw new Error(`Telegram delivery failed with status ${response.status}: ${responseText}`);
+  }
+    }
