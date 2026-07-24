@@ -120,6 +120,7 @@ export async function processQueuedBatch(options: {
       });
       await saveBatchProgress(options, currentBatch);
     } catch (error) {
+      console.error("Download failed for video", video.id, error);
       currentBatch = {
         ...updateVideo(currentBatch, video.id, { status: "failed" }),
         status: "failed"
@@ -226,6 +227,7 @@ export async function processQueuedBatch(options: {
     };
     await saveBatchProgress(options, currentBatch);
   } catch (error) {
+    console.error("Upload or delivery failed for batch", currentBatch.id, error);
     currentBatch = { ...currentBatch, status: "failed" };
     await saveBatchProgress(options, currentBatch);
     throw error;
@@ -260,4 +262,4 @@ function updateVideo(batch: Batch, videoId: string, patch: Partial<Batch["videos
 function sanitizeStorageSegment(value: string) {
   const safeValue = value.replace(/[^a-zA-Z0-9_.-]+/g, "-").replace(/^-+|-+$/g, "");
   return safeValue || "file";
-}
+      }
