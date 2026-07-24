@@ -159,7 +159,8 @@ export async function processQueuedBatch(options: {
         outputPath: render.outputPath
       });
       await saveBatchProgress(options, currentBatch);
-    } catch {
+    } catch (error) {
+      console.error("Render failed for video", video.id, error);
       currentBatch = updateVideo(currentBatch, video.id, { status: "failed" });
       await saveBatchProgress(options, currentBatch);
     }
